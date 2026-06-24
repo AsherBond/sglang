@@ -44,10 +44,6 @@ _RESOLVE = (
     "managers/scheduler_components/batch_result_processor.py",
     "SchedulerBatchResultProcessor._resolve_spec_v2_tokens",
 )
-_GRAMMAR_ACCEPT = (
-    "managers/scheduler_components/batch_result_processor.py",
-    "SchedulerBatchResultProcessor._accept_spec_v2_grammar_tokens",
-)
 _SS = "session/streaming_session.py"
 _OWNER_SITES = {
     # non-spec scheduler
@@ -59,18 +55,12 @@ _OWNER_SITES = {
     (_SB, "ScheduleBatch.prepare_for_extend", "kv_allocated_len"): 1,
     ("mem_cache/common.py", "alloc_for_extend", "evict"): 1,
     ("mem_cache/common.py", "alloc_for_decode", "evict"): 1,
-    # spec v2: pre-claim in the scheduler-driven mixin, settle in resolve
+    # spec v2: no pre-claim; resolve commits the full accepted run uniformly.
     (*_MIXIN, "decode_batch_idx"): 1,
     (*_MIXIN, "evict"): 1,
-    (*_MIXIN, "kv_committed_len"): 1,
     (*_MIXIN, "kv_allocated_len"): 1,
-    # 3rd resolve mutation: DFLASH settles its full commit_lens here (no
-    # pre-claim in prepare_for_decode, unlike the EAGLE mixin).
-    (*_RESOLVE, "kv_committed_len"): 3,
+    (*_RESOLVE, "kv_committed_len"): 1,
     (*_RESOLVE, "spec_verify_ct"): 1,
-    # Spec grammar trim rolls back KV slots for tokens dropped after grammar
-    # completion; resolve already committed the full accepted list.
-    (*_GRAMMAR_ACCEPT, "kv_committed_len"): 1,
     (
         "speculative/dflash_info_v2.py",
         "DFlashDraftInputV2.prepare_for_decode",
@@ -97,6 +87,8 @@ _OWNER_SITES = {
     (_SS, "StreamingSession._trim_overshoot", "kv_committed_len"): 1,
     (_SS, "StreamingSession._trim_overshoot", "kv_allocated_len"): 1,
     (_SS, "StreamingSession.try_cache_finished_req", "kv_allocated_len"): 1,
+    # Inherit the authoritative finished length (not the lagging req clock).
+    (_SS, "StreamingSession.try_cache_finished_req", "kv_committed_len"): 1,
 }
 
 
